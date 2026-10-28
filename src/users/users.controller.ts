@@ -17,6 +17,11 @@ export class UsersController {
     return this.usersService.findAll();
   }
 
+  @MessagePattern({ cmd: 'count_users' })
+  count() {
+    return this.usersService.count();
+  }
+
   @MessagePattern({ cmd: 'find_users_by_ids' })
   findMany(@Payload() { ids }: UsersByIdsMessage) {
     return this.usersService.findMany(ids);

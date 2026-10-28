@@ -271,6 +271,12 @@ describe('Servicio de usuarios', () => {
       expect(encontrado.email).toBe(usuario.email);
     });
 
+    it('cuenta los usuarios', async () => {
+      expect(await enviar('count_users')).toBe(0);
+      await enviar('create_user', usuario);
+      expect(await enviar('count_users')).toBe(1);
+    });
+
     it('busca varios usuarios por ID sin exponer contraseñas', async () => {
       const ana = await enviar('create_user', usuario);
       await enviar('create_user', { ...usuario, email: 'beto@remi.cl' });

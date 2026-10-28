@@ -46,6 +46,10 @@ export class UsersService {
     return usuarios.map(aPublico);
   }
 
+  count() {
+    return this.userModel.countDocuments().exec();
+  }
+
   async findMany(ids: string[]): Promise<PublicUser[]> {
     const usuarios = await this.userModel.find({ _id: { $in: ids } }).exec();
     return usuarios.map(aPublico);
