@@ -25,6 +25,7 @@ Microservicio de **Remi Recetas** que guarda a los usuarios y emite sus sesiones
 | `refresh_token` | refresh token | Un par nuevo de tokens |
 | `get_all_users` | — | Lista de usuarios públicos |
 | `find_user_by_id` | `id` | Usuario público |
+| `count_users` | — | Cantidad de usuarios |
 | `find_users_by_ids` | `ids` (hasta 100) | Lista de usuarios públicos |
 
 Los errores viajan como `{ status, message }` (400 datos inválidos, 401 credenciales o token inválidos, 404 inexistente, 409 correo repetido) y el gateway los convierte en respuestas HTTP.
