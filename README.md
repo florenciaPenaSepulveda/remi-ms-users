@@ -1,98 +1,86 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Remi Recetas · Servicio de usuarios
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+[![CI](https://github.com/florenciaPenaSepulveda/remi-ms-users/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/florenciaPenaSepulveda/remi-ms-users/actions/workflows/ci.yml)
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+Microservicio de **Remi Recetas** que guarda a los usuarios y emite sus sesiones. No expone HTTP: escucha mensajes en una cola de RabbitMQ y responde al [gateway](https://github.com/florenciaPenaSepulveda/remi-gateway), que es la única puerta de entrada del sistema. Hecho con NestJS 11 y MongoDB.
 
-## Description
+## Repositorios del sistema
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+| Repositorio | Función |
+|---|---|
+| [remi-gateway](https://github.com/florenciaPenaSepulveda/remi-gateway) | API HTTP pública, autenticación y enrutamiento |
+| **remi-ms-users** (este) | Usuarios, inicio de sesión y tokens |
+| [remi-ms-recetas](https://github.com/florenciaPenaSepulveda/remi-ms-recetas) | Recetas e ingredientes |
+| [remi-ms-tags](https://github.com/florenciaPenaSepulveda/remi-ms-tags) | Etiquetas de las recetas |
+| [remi-ms-socials](https://github.com/florenciaPenaSepulveda/remi-ms-socials) | Me gusta y comentarios |
+| [remi-frontend](https://github.com/florenciaPenaSepulveda/remi-frontend) | Aplicación web en React |
 
-## Project setup
+## Mensajes que atiende
 
-```bash
-$ npm install
-```
+| Patrón | Datos | Respuesta |
+|---|---|---|
+| `create_user` | `name`, `email`, `password` | Usuario público (`id`, `name`, `email`, `createdAt`) |
+| `login_user` | `email`, `password` | `accessToken`, `refreshToken` y `user` |
+| `validate_token` | token de acceso | `userId` y `email`, o error 401 |
+| `refresh_token` | refresh token | Un par nuevo de tokens |
+| `get_all_users` | — | Lista de usuarios públicos |
+| `find_user_by_id` | `id` | Usuario público |
+| `find_users_by_ids` | `ids` (hasta 100) | Lista de usuarios públicos |
 
-## Compile and run the project
+Los errores viajan como `{ status, message }` (400 datos inválidos, 401 credenciales o token inválidos, 404 inexistente, 409 correo repetido) y el gateway los convierte en respuestas HTTP.
 
-```bash
-# development
-$ npm run start
+## Seguridad
 
-# watch mode
-$ npm run start:dev
+- Las contraseñas se guardan con bcrypt y nunca salen del servicio: el campo está excluido de las consultas y de todas las respuestas.
+- Los tokens son JWT firmados con HS256 y llevan un tipo (`access` o `refresh`); un refresh token no sirve como token de acceso ni al revés. Duran 15 minutos y 7 días por defecto.
+- Cada validación comprueba que el usuario siga existiendo.
+- Un correo desconocido y una contraseña errónea responden lo mismo y tardan parecido, para no revelar qué cuentas existen.
+- Los datos se validan y se rechazan los campos que no corresponden: correo válido, nombre de 2 a 60 caracteres y contraseña de 8 a 72 con letra y número. Los correos se guardan en minúsculas.
+- El servicio no arranca sin un `JWT_SECRET` de al menos 32 caracteres.
+- No se versiona ningún `.env`.
 
-# production mode
-$ npm run start:prod
-```
+## Requisitos
 
-## Run tests
+- Node.js 24 (ver `.nvmrc`).
+- MongoDB y RabbitMQ. El `docker-compose.yml` del gateway los levanta.
 
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
-```
-
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+## Puesta en marcha
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+cp .env.example .env
+npm ci
+npm run start:dev
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+| Variable | Descripción | Por defecto |
+|---|---|---|
+| `MONGODB_URI` | Conexión a MongoDB | obligatoria |
+| `JWT_SECRET` | Secreto de los tokens (mínimo 32 caracteres) | obligatoria |
+| `AMQP_URI` | Conexión a RabbitMQ | `amqp://localhost:5672` |
+| `USERS_QUEUE` | Cola que escucha | `users_queue` |
+| `ACCESS_TOKEN_TTL` | Duración del token de acceso | `15m` |
+| `REFRESH_TOKEN_TTL` | Duración del refresh token | `7d` |
+| `BCRYPT_ROUNDS` | Costo del hash | `10` |
 
-## Resources
+`JWT_SECRET` solo lo usa este servicio: el gateway no lo conoce porque valida los tokens preguntándole a este.
 
-Check out a few resources that may come in handy when working with NestJS:
+## Pruebas
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+```bash
+npm test
+npm run test:cov
+npm run lint
+```
 
-## Support
+Las pruebas levantan el servicio completo (validación y errores incluidos) sobre transporte TCP y lo consultan como lo haría el gateway; necesitan una MongoDB en `MONGODB_URI` (por defecto `mongodb://localhost:27018/remi_users_test`) y borran su base de pruebas al terminar. El CI ejecuta lint, compilación y pruebas con cobertura.
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+## Docker
 
-## Stay in touch
+```bash
+docker build -t remi-ms-users .
+docker run --env-file .env remi-ms-users
+```
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+## Autoría
 
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Proyecto desarrollado en equipo durante la carrera. Esta copia forma parte del portafolio de [Florencia Peña Sepúlveda](https://github.com/florenciaPenaSepulveda), que la revisó, corrigió y documentó.
