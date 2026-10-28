@@ -1,31 +1,15 @@
-# ==========================
-# STAGE 1 — Build
-# ==========================
-FROM node:20-alpine AS builder
-
-WORKDIR /usr/src/app
-
+FROM node:24-alpine AS build
+WORKDIR /app
 COPY package*.json ./
-RUN npm install
-
+RUN npm ci
 COPY . .
-RUN npm run build
+RUN npm run build && npm prune --omit=dev
 
-# ==========================
-# STAGE 2 — Runtime
-# ==========================
-FROM node:20-alpine AS runner
-
-WORKDIR /usr/src/app
-
-COPY package*.json ./
-RUN npm install --only=production
-
-COPY --from=builder /usr/src/app/dist ./dist
-
+FROM node:24-alpine
+WORKDIR /app
 ENV NODE_ENV=production
-ENV PORT=3001
-
-EXPOSE 3001
-
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/dist ./dist
+COPY package.json ./
+USER node
 CMD ["node", "dist/main.js"]
