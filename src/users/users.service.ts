@@ -1,91 +1,74 @@
 import { Injectable } from '@nestjs/common';
-import { Model } from 'mongoose';
+import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
-import * as bcrypt from 'bcrypt';
-import { User } from './schemas/user.schema';
 import { RpcException } from '@nestjs/microservices';
+import * as bcrypt from 'bcrypt';
+import { Model, isValidObjectId } from 'mongoose';
+import { Env } from '../config/env';
 import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { PublicUser, aPublico } from './public-user';
+import { User, UserDocument } from './schemas/user.schema';
+
+const CODIGO_DUPLICADO = 11000;
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel(User.name) private userModel: Model<User>) {}
+  constructor(
+    @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
+    private readonly config: ConfigService<Env, true>,
+  ) {}
 
-  async create(createUserDto: CreateUserDto): Promise<User> {
-    // Verificar si el usuario ya existe
-    const existingUser = await this.userModel
-      .findOne({ email: createUserDto.email })
-      .exec();
+  async create(dto: CreateUserDto): Promise<PublicUser> {
+    if (await this.userModel.exists({ email: dto.email })) {
+      throw this.correoRepetido();
+    }
+    const password = await bcrypt.hash(
+      dto.password,
+      this.config.get('BCRYPT_ROUNDS', { infer: true }),
+    );
+    try {
+      const creado = await this.userModel.create({ ...dto, password });
+      return aPublico(creado);
+    } catch (error) {
+      if ((error as { code?: number }).code === CODIGO_DUPLICADO) {
+        throw this.correoRepetido();
+      }
+      throw error;
+    }
+  }
 
-    if (existingUser) {
+  findByEmailWithPassword(email: string) {
+    return this.userModel.findOne({ email }).select('+password').exec();
+  }
+
+  async findAll(): Promise<PublicUser[]> {
+    const usuarios = await this.userModel.find().sort({ createdAt: 1 }).exec();
+    return usuarios.map(aPublico);
+  }
+
+  async findMany(ids: string[]): Promise<PublicUser[]> {
+    const usuarios = await this.userModel.find({ _id: { $in: ids } }).exec();
+    return usuarios.map(aPublico);
+  }
+
+  async findOne(id: string): Promise<PublicUser> {
+    if (typeof id !== 'string' || !isValidObjectId(id)) {
       throw new RpcException({
-        status: 409,
-        message: 'El usuario con este correo ya existe',
+        status: 400,
+        message: 'ID de usuario inválido',
       });
     }
+    const usuario = await this.userModel.findById(id).exec();
+    if (!usuario) {
+      throw new RpcException({ status: 404, message: 'Usuario no encontrado' });
+    }
+    return aPublico(usuario);
+  }
 
-    // 🔐 Encriptar la contraseña antes de guardar
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(
-      createUserDto.password,
-      saltRounds,
-    );
-
-    // Crear nuevo usuario con contraseña encriptada
-    const createdUser = new this.userModel({
-      ...createUserDto,
-      password: hashedPassword,
+  private correoRepetido() {
+    return new RpcException({
+      status: 409,
+      message: 'El usuario con este correo ya existe',
     });
-
-    console.log('✅ Usuario creado:', createdUser.email);
-
-    return createdUser.save();
-  }
-
-  // src/users/users.service.ts
-  async findByEmail(email: string) {
-    return this.userModel.findOne({ email }).exec();
-  }
-
-  async findAll() {
-    const users = this.userModel.find().exec();
-    if (!users)
-      throw new RpcException({
-        status: 404,
-        message: '❌Usuarios no encontrados',
-      });
-    return users;
-  }
-
-  async findOne(id: string) {
-    const user = await this.userModel.findById(id).exec();
-    if (!user)
-      throw new RpcException({
-        status: 404,
-        message: '❌Usuario no encontrado',
-      });
-    return user;
-  }
-
-  async update(id: string, updateUserDto: UpdateUserDto) {
-    const updated = await this.userModel
-      .findByIdAndUpdate(id, updateUserDto, { new: true })
-      .exec();
-    if (!updated)
-      throw new RpcException({
-        status: 404,
-        message: '❌Usuario no encontrado',
-      });
-    return updated;
-  }
-
-  async remove(id: string) {
-    const deleted = await this.userModel.findByIdAndDelete(id).exec();
-    if (!deleted)
-      throw new RpcException({
-        status: 404,
-        message: '❌Usuario no encontrado',
-      });
-    return deleted;
   }
 }

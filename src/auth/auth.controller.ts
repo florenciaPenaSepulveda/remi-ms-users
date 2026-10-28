@@ -1,4 +1,4 @@
-import { Body, Controller } from '@nestjs/common';
+import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login-dto';
@@ -8,21 +8,18 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @MessagePattern({ cmd: 'login_user' })
-  async login(@Payload() loginDto: LoginDto) {
-    console.log('🔐 Intentando login');
-    const user = await this.authService.validateUser(loginDto);
-    return this.authService.login(user);
+  async login(@Payload() dto: LoginDto) {
+    const usuario = await this.authService.validateUser(dto);
+    return this.authService.login(usuario);
   }
 
   @MessagePattern({ cmd: 'validate_token' })
-  async validateToken(@Payload() token: string) {
-    console.log('🛡️ Validando token recibido:', token);
+  validateToken(@Payload() token: string) {
     return this.authService.validateToken(token);
   }
 
   @MessagePattern({ cmd: 'refresh_token' })
-  async refreshToken(@Payload() token: string) {
-    console.log('🔄 Refrescando token recibido:', token);
+  refreshToken(@Payload() token: string) {
     return this.authService.refreshToken(token);
   }
 }

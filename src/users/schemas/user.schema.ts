@@ -1,23 +1,20 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { HydratedDocument } from 'mongoose';
 
 @Schema({ timestamps: true })
 export class User {
-  // 🔸 Especifica el tipo de _id si lo usas directamente
-  _id?: Types.ObjectId;
-
-  @Prop({ required: true })
+  @Prop({ required: true, trim: true })
   name: string;
 
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true, unique: true, lowercase: true, trim: true })
   email: string;
 
-  @Prop()
-  password?: string;
+  @Prop({ required: true, select: false })
+  password: string;
+
+  createdAt?: Date;
 }
 
-// 🔸 Declara que tu documento usa ObjectId como _id
-export type UserDocument = Document<unknown, any, User> &
-  User & { _id: Types.ObjectId };
+export type UserDocument = HydratedDocument<User>;
 
 export const UserSchema = SchemaFactory.createForClass(User);
