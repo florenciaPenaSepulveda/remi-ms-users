@@ -4,6 +4,19 @@
 
 Microservicio de **Remi Recetas** que guarda a los usuarios y emite sus sesiones. No expone HTTP: escucha mensajes en una cola de RabbitMQ y responde al [gateway](https://github.com/florenciaPenaSepulveda/remi-gateway), que es la única puerta de entrada del sistema. Hecho con NestJS 11 y MongoDB.
 
+## Inicio rápido
+
+Necesita: MongoDB y RabbitMQ (`docker compose up -d` en `remi-gateway`).
+
+```bash
+cp .env.example .env
+npm ci
+npm run start:dev
+npm test
+```
+
+30 pruebas, 98 % de cobertura.
+
 ## Repositorios del sistema
 
 | Repositorio | Función |
@@ -12,7 +25,7 @@ Microservicio de **Remi Recetas** que guarda a los usuarios y emite sus sesiones
 | **remi-ms-users** (este) | Usuarios, inicio de sesión y tokens |
 | [remi-ms-recetas](https://github.com/florenciaPenaSepulveda/remi-ms-recetas) | Recetas e ingredientes |
 | [remi-ms-tags](https://github.com/florenciaPenaSepulveda/remi-ms-tags) | Etiquetas de las recetas |
-| [remi-ms-socials](https://github.com/florenciaPenaSepulveda/remi-ms-socials) | Me gusta y comentarios |
+| [remi-ms-socials](https://github.com/florenciaPenaSepulveda/remi-ms-socials) | Puntuaciones, comentarios, recetario e impacto |
 | [remi-frontend](https://github.com/florenciaPenaSepulveda/remi-frontend) | Aplicación web en React |
 
 ## Mensajes que atiende
